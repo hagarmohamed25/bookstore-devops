@@ -11,9 +11,6 @@ env:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
-    outputs:
-      backend-image: ${{ steps.backend-build.outputs.image }}
-      frontend-image: ${{ steps.frontend-build.outputs.image }}
     steps:
     - name: Checkout Application Code
       uses: actions/checkout@v3
@@ -31,8 +28,7 @@ jobs:
       id: login-ecr
       uses: aws-actions/amazon-ecr-login@v1
 
-    - name: Build, tag, and push backend image to Amazon ECR
-      id: backend-build
+    - name: Build, tag, and push backend image
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         ECR_REPOSITORY: bookstore-backend
@@ -41,10 +37,9 @@ jobs:
         cd backend
         docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-        echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+        echo "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" > backend-image.txt
 
-    - name: Build, tag, and push frontend image to Amazon ECR
-      id: frontend-build
+    - name: Build, tag, and push frontend image
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         ECR_REPOSITORY: bookstore-frontend
@@ -53,7 +48,15 @@ jobs:
         cd frontend
         docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-        echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+        echo "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" > frontend-image.txt
+
+    - name: Upload image URLs as artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: image-urls
+        path: |
+          backend-image.txt
+          frontend-image.txt
 
   deploy:
     needs: build-and-push
@@ -61,6 +64,11 @@ jobs:
     steps:
     - name: Checkout DevOps Code
       uses: actions/checkout@v3
+
+    - name: Download image URLs artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: image-urls
 
     - name: Configure AWS Credentials
       uses: aws-actions/configure-aws-credentials@v2
@@ -85,9 +93,13 @@ jobs:
 
     - name: Replace image tags in Kubernetes manifests
       run: |
-        # NOTE THE DOUBLE QUOTES HERE. THIS IS THE FIX.
-        sed -i "s|PLACEHOLDER_BACKEND_IMAGE|${{ needs.build-and-push.outputs.backend-image }}|g" kubernetes/backend-deployment.yml
-        sed -i "s|PLACEHOLDER_FRONTEND_IMAGE|${{ needs.build-and-push.outputs.frontend-image }}|g" kubernetes/frontend-deployment.yml
+        # Read URLs from the downloaded files
+        BACKEND_IMAGE=$(cat backend-image.txt)
+        FRONTEND_IMAGE=$(cat frontend-image.txt)
+        
+        # Use the URLs in the sed command
+        sed -i "s|PLACEHOLDER_BACKEND_IMAGE|$BACKEND_IMAGE|g" kubernetes/backend-deployment.yml
+        sed -i "s|PLACEHOLDER_FRONTEND_IMAGE|$FRONTEND_IMAGE|g" kubernetes/frontend-deployment.yml
 
     - name: Run Ansible Playbook
       run: ansible-playbook ansible/playbook.yml
