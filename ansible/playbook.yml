@@ -26,7 +26,7 @@
             create: true
             name: aws-load-balancer-controller
             annotations: {
-              "eks.amazonaws.com/role-arn": "arn:aws:iam::YOUR_AWS_ACCOUNT_ID:role/AWSLoadBalancerControllerRole" # We need to create this role!
+                "eks.amazonaws.com/role-arn": "arn:aws:iam::620369151876:role/AWSLoadBalancerControllerRole"
             }
 
     - name: Apply all Kubernetes manifests

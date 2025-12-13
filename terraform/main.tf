@@ -72,7 +72,7 @@ resource "aws_iam_role_policy_attachment" "eks_cluster_policy" {
 resource "aws_eks_cluster" "eks" {
   name     = var.cluster_name
   role_arn = aws_iam_role.eks_cluster_role.arn
-  version  = "1.28" # Use a recent, stable version
+  version  = "1.29" # Use a recent, stable version
 
   vpc_config {
     subnet_ids = aws_subnet.eks_subnet[*].id
@@ -154,7 +154,204 @@ resource "aws_iam_role" "lb_controller_role" {
   })
 }
 
-resource "aws_iam_role_policy_attachment" "lb_controller_policy" {
-  policy_arn = "arn:aws:iam::aws:policy/AWSLoadBalancerControllerIAMPolicy"
+resource "aws_iam_policy" "lb_controller_policy" {
+  name        = "AWSLoadBalancerControllerIAMPolicy"
+  description = "Policy for AWS Load Balancer Controller"
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow",
+        Action = [
+          "iam:CreateServiceLinkedRole",
+          "ec2:DescribeAccountAttributes",
+          "ec2:DescribeAddresses",
+          "ec2:DescribeAvailabilityZones",
+          "ec2:DescribeInternetGateways",
+          "ec2:DescribeVpcs",
+          "ec2:DescribeSubnets",
+          "ec2:DescribeSecurityGroups",
+          "ec2:DescribeInstances",
+          "ec2:DescribeNetworkInterfaces",
+          "ec2:DescribeTags",
+          "ec2:GetCoipPoolUsage",
+          "ec2:DescribeCoipPools",
+          "elasticloadbalancing:DescribeLoadBalancers",
+          "elasticloadbalancing:DescribeLoadBalancerAttributes",
+          "elasticloadbalancing:DescribeListeners",
+          "elasticloadbalancing:DescribeListenerCertificates",
+          "elasticloadbalancing:DescribeSSLPolicies",
+          "elasticloadbalancing:DescribeTargetGroups",
+          "elasticloadbalancing:DescribeTargetGroupAttributes",
+          "elasticloadbalancing:DescribeTargetHealth",
+          "elasticloadbalancing:DescribeTags"
+        ],
+        Resource = "*"
+      },
+      {
+        Effect = "Allow",
+        Action = [
+          "cognito-idp:DescribeUserPoolClient",
+          "acm:ListCertificates",
+          "acm:DescribeCertificate",
+          "iam:ListServerCertificates",
+          "iam:GetServerCertificate",
+          "waf-regional:GetWebACL",
+          "waf-regional:GetWebACLForResource",
+          "waf-regional:AssociateWebACL",
+          "waf-regional:DisassociateWebACL",
+          "wafv2:GetWebACL",
+          "wafv2:GetWebACLForResource",
+          "wafv2:AssociateWebACL",
+          "wafv2:DisassociateWebACL",
+          "shield:GetSubscriptionState",
+          "shield:DescribeProtection",
+          "shield:CreateProtection",
+          "shield:DeleteProtection"
+        ],
+        Resource = "*"
+      },
+      {
+        Effect = "Allow",
+        Action = [
+          "ec2:AuthorizeSecurityGroupIngress",
+          "ec2:RevokeSecurityGroupIngress"
+        ],
+        Resource = "*"
+      },
+      {
+        Effect = "Allow",
+        Action = [
+          "ec2:CreateSecurityGroup"
+        ],
+        Resource = "*"
+      },
+      {
+        Effect = "Allow",
+        Action = [
+          "ec2:CreateTags"
+        ],
+        Resource = "arn:aws:ec2:*:*:security-group/*",
+        Condition = {
+          StringEquals = {
+            "ec2:CreateAction" = "CreateSecurityGroup"
+          }
+        }
+      },
+      {
+        Effect = "Allow",
+        Action = [
+          "ec2:DeleteTags"
+        ],
+        Resource = "arn:aws:ec2:*:*:security-group/*",
+        Condition = {
+          StringEquals = {
+            "ec2:DeleteAction" = "DeleteSecurityGroup"
+          }
+        }
+      },
+      {
+        Effect = "Allow",
+        Action = [
+          "ec2:AuthorizeSecurityGroupIngress",
+          "ec2:RevokeSecurityGroupIngress",
+          "ec2:DeleteSecurityGroup"
+        ],
+        Resource = "*",
+        Condition = {
+          StringEquals = {
+            "aws:RequestedRegion": [
+              "us-east-1",
+              "us-east-2",
+              "us-west-1",
+              "us-west-2",
+              "ap-south-1",
+              "ap-northeast-1",
+              "ap-northeast-2",
+              "ap-northeast-3",
+              "ap-southeast-1",
+              "ap-southeast-2",
+              "ca-central-1",
+              "eu-central-1",
+              "eu-west-1",
+              "eu-west-2",
+              "eu-west-3",
+              "eu-north-1",
+              "sa-east-1"
+            ]
+          }
+        }
+      },
+      {
+        Effect = "Allow",
+        Action = [
+          "elasticloadbalancing:CreateLoadBalancer",
+          "elasticloadbalancing:CreateTargetGroup"
+        ],
+        Resource = "*",
+        Condition = {
+          StringEquals = {
+            "aws:RequestedRegion": [
+              "us-east-1",
+              "us-east-2",
+              "us-west-1",
+              "us-west-2",
+              "ap-south-1",
+              "ap-northeast-1",
+              "ap-northeast-2",
+              "ap-northeast-3",
+              "ap-southeast-1",
+              "ap-southeast-2",
+              "ca-central-1",
+              "eu-central-1",
+              "eu-west-1",
+              "eu-west-2",
+              "eu-west-3",
+              "eu-north-1",
+              "sa-east-1"
+            ]
+          }
+        }
+      },
+      {
+        Effect = "Allow",
+        Action = [
+          "elasticloadbalancing:AddTags",
+          "elasticloadbalancing:RemoveTags"
+        ],
+        Resource: [
+          "arn:aws:elasticloadbalancing:*:*:targetgroup/*",
+          "arn:aws:elasticloadbalancing:*:*:loadbalancer/net/*",
+          "arn:aws:elasticloadbalancing:*:*:loadbalancer/app/*"
+        ]
+      },
+      {
+        Effect = "Allow",
+        Action: [
+          "elasticloadbalancing:ModifyLoadBalancerAttributes",
+          "elasticloadbalancing:SetIpAddressType",
+          "elasticloadbalancing:SetSecurityGroups",
+          "elasticloadbalancing:SetSubnets",
+          "elasticloadbalancing:DeleteLoadBalancer",
+          "elasticloadbalancing:ModifyTargetGroup",
+          "elasticloadbalancing:ModifyTargetGroupAttributes",
+          "elasticloadbalancing:DeleteTargetGroup"
+        ],
+        Resource: "*"
+      },
+      {
+        Effect: "Allow",
+        Action: [
+          "elasticloadbalancing:RegisterTargets",
+          "elasticloadbalancing:DeregisterTargets"
+        ],
+        Resource: "arn:aws:elasticloadbalancing:*:*:targetgroup/*"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "lb_controller_policy_attach" {
   role       = aws_iam_role.lb_controller_role.name
+  policy_arn = aws_iam_policy.lb_controller_policy.arn
 }
