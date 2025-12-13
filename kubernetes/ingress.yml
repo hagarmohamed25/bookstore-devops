@@ -2,9 +2,9 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: bookstore-ingress
+  namespace: default
   annotations:
-    # This annotation is key for the AWS Load Balancer Controller
-    kubernetes.io/ingress.class: "alb" 
+    kubernetes.io/ingress.class: "alb"
 spec:
   rules:
   - http:
