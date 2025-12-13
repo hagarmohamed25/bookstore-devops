@@ -47,7 +47,7 @@ spec:
       containers:
       - name: backend
         # Image will be updated by GitHub Actions
-        image: 123456789012.dkr.ecr.us-east-1.amazonaws.com/bookstore-backend:latest 
+        image: PLACEHOLDER_BACKEND_IMAGE # <-- THIS IS THE CHANGED LINE
         ports:
         - containerPort: 3001
         volumeMounts:

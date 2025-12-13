@@ -87,8 +87,8 @@ jobs:
 
     - name: Replace image tags in Kubernetes manifests
       run: |
-        sed -i 's|123456789012.dkr.ecr.us-east-1.amazonaws.com/bookstore-backend:latest|${{ needs.build-and-push.outputs.backend-image }}|g' kubernetes/backend-deployment.yml
-        sed -i 's|123456789012.dkr.ecr.us-east-1.amazonaws.com/bookstore-frontend:latest|${{ needs.build-and-push.outputs.frontend-image }}|g' kubernetes/frontend-deployment.yml
+        sed -i 's|PLACEHOLDER_BACKEND_IMAGE|${{ needs.build-and-push.outputs.backend-image }}|g' kubernetes/backend-deployment.yml
+        sed -i 's|PLACEHOLDER_FRONTEND_IMAGE|${{ needs.build-and-push.outputs.frontend-image }}|g' kubernetes/frontend-deployment.yml
 
     - name: Run Ansible Playbook
       run: ansible-playbook ansible/playbook.yml
