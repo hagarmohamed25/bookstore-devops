@@ -85,10 +85,22 @@ jobs:
        pip install ansible kubernetes openshift
        ansible-galaxy collection install community.aws
 
+    - name: Debug - Print image variables
+      run: |
+        echo "Backend Image URL is: ${{ needs.build-and-push.outputs.backend-image }}"
+        echo "Frontend Image URL is: ${{ needs.build-and-push.outputs.frontend-image }}"
+
     - name: Replace image tags in Kubernetes manifests
       run: |
         sed -i 's|PLACEHOLDER_BACKEND_IMAGE|${{ needs.build-and-push.outputs.backend-image }}|g' kubernetes/backend-deployment.yml
         sed -i 's|PLACEHOLDER_FRONTEND_IMAGE|${{ needs.build-and-push.outputs.frontend-image }}|g' kubernetes/frontend-deployment.yml
+
+    - name: Debug - Show modified file content
+      run: |
+        echo "--- Content of backend-deployment.yml ---"
+        cat kubernetes/backend-deployment.yml
+        echo "--- Content of frontend-deployment.yml ---"
+        cat kubernetes/frontend-deployment.yml
 
     - name: Run Ansible Playbook
       run: ansible-playbook ansible/playbook.yml
