@@ -1,0 +1,35 @@
+---
+- name: Deploy Bookstore App to Kubernetes
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  collections:
+    - kubernetes.core
+    - community.aws
+
+  tasks:
+    - name: Add AWS Helm Chart Repo
+      kubernetes.core.helm_repository:
+        name: aws
+        repo_url: "https://aws.github.io/eks-charts"
+
+    - name: Deploy AWS Load Balancer Controller
+      kubernetes.core.helm:
+        name: aws-load-balancer-controller
+        chart_ref: aws/aws-load-balancer-controller
+        release_namespace: kube-system
+        create_namespace: true
+        values:
+          clusterName: "bookstore-cluster" # Must match your EKS cluster name
+          serviceAccount:
+            create: true
+            name: aws-load-balancer-controller
+            annotations: {
+              "eks.amazonaws.com/role-arn": "arn:aws:iam::YOUR_AWS_ACCOUNT_ID:role/AWSLoadBalancerControllerRole" # We need to create this role!
+            }
+
+    - name: Apply all Kubernetes manifests
+      kubernetes.core.k8s:
+        state: present
+        definition: "{{ lookup('kubernetes.core.k8s', kube_config_path='~/.kube/config', kube_context='arn:aws:eks:us-east-1:YOUR_AWS_ACCOUNT_ID:cluster/bookstore-cluster', template_dir='../kubernetes') }}"

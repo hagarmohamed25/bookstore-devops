@@ -1,0 +1,93 @@
+name: Build and Deploy to EKS
+
+on:
+  push:
+    branches: [ "main" ]
+
+# IMPORTANT: Set these environment variables in your GitHub repo settings
+# under Secrets and variables > Actions > Variables
+env:
+  AWS_REGION: us-east-1
+  EKS_CLUSTER_NAME: ${{ vars.EKS_CLUSTER_NAME || 'bookstore-cluster' }} # Use a variable or default
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    outputs:
+      backend-image: ${{ steps.backend-push.outputs.image }}
+      frontend-image: ${{ steps.frontend-push.outputs.image }}
+    steps:
+    - name: Checkout Application Code
+      uses: actions/checkout@v3
+      with:
+        repository: hagarmohamed25/bookstore-app-v2 # Your application repo
+
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v1
+
+    - name: Build, tag, and push backend image to Amazon ECR
+      id: backend-build
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        ECR_REPOSITORY: bookstore-backend # Match your ECR repo name
+        IMAGE_TAG: ${{ github.sha }}
+      run: |
+        cd backend
+        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+        echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+    - name: Build, tag, and push frontend image to Amazon ECR
+      id: frontend-build
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        ECR_REPOSITORY: bookstore-frontend # Match your ECR repo name
+        IMAGE_TAG: ${{ github.sha }}
+      run: |
+        cd frontend
+        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+        echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout DevOps Code
+      uses: actions/checkout@v3
+
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Update kubeconfig
+      run: aws eks update-kubeconfig --name ${{ env.EKS_CLUSTER_NAME }} --region ${{ env.AWS_REGION }}
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+
+    - name: Install Ansible and dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install ansible kubernetes-core openshift community.aws
+
+    - name: Replace image tags in Kubernetes manifests
+      run: |
+        sed -i 's|123456789012.dkr.ecr.us-east-1.amazonaws.com/bookstore-backend:latest|${{ needs.build-and-push.outputs.backend-image }}|g' kubernetes/backend-deployment.yml
+        sed -i 's|123456789012.dkr.ecr.us-east-1.amazonaws.com/bookstore-frontend:latest|${{ needs.build-and-push.outputs.frontend-image }}|g' kubernetes/frontend-deployment.yml
+
+    - name: Run Ansible Playbook
+      run: ansible-playbook ansible/playbook.yml
