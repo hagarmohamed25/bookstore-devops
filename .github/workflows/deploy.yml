@@ -4,11 +4,9 @@ on:
   push:
     branches: [ "main" ]
 
-# IMPORTANT: Set these environment variables in your GitHub repo settings
-# under Secrets and variables > Actions > Variables
 env:
   AWS_REGION: us-east-1
-  EKS_CLUSTER_NAME: ${{ vars.EKS_CLUSTER_NAME || 'bookstore-cluster' }} # Use a variable or default
+  EKS_CLUSTER_NAME: ${{ vars.EKS_CLUSTER_NAME || 'bookstore-cluster' }}
 
 jobs:
   build-and-push:
@@ -20,7 +18,7 @@ jobs:
     - name: Checkout Application Code
       uses: actions/checkout@v3
       with:
-        repository: hagarmohamed25/bookstore-app-v2 # Your application repo
+        repository: hagarmohamed25/bookstore-app-v2
 
     - name: Configure AWS Credentials
       uses: aws-actions/configure-aws-credentials@v2
@@ -37,7 +35,7 @@ jobs:
       id: backend-build
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        ECR_REPOSITORY: bookstore-backend # Match your ECR repo name
+        ECR_REPOSITORY: bookstore-backend
         IMAGE_TAG: ${{ github.sha }}
       run: |
         cd backend
@@ -49,7 +47,7 @@ jobs:
       id: frontend-build
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        ECR_REPOSITORY: bookstore-frontend # Match your ECR repo name
+        ECR_REPOSITORY: bookstore-frontend
         IMAGE_TAG: ${{ github.sha }}
       run: |
         cd frontend
@@ -81,26 +79,15 @@ jobs:
 
     - name: Install Ansible and dependencies
       run: |
-       python -m pip install --upgrade pip
-       pip install ansible kubernetes openshift
-       ansible-galaxy collection install community.aws
-
-    - name: Debug - Print image variables
-      run: |
-        echo "Backend Image URL is: ${{ needs.build-and-push.outputs.backend-image }}"
-        echo "Frontend Image URL is: ${{ needs.build-and-push.outputs.frontend-image }}"
+        python -m pip install --upgrade pip
+        pip install ansible kubernetes openshift
+        ansible-galaxy collection install community.aws
 
     - name: Replace image tags in Kubernetes manifests
       run: |
-        sed -i 's|PLACEHOLDER_BACKEND_IMAGE|${{ needs.build-and-push.outputs.backend-image }}|g' kubernetes/backend-deployment.yml
-        sed -i 's|PLACEHOLDER_FRONTEND_IMAGE|${{ needs.build-and-push.outputs.frontend-image }}|g' kubernetes/frontend-deployment.yml
-
-    - name: Debug - Show modified file content
-      run: |
-        echo "--- Content of backend-deployment.yml ---"
-        cat kubernetes/backend-deployment.yml
-        echo "--- Content of frontend-deployment.yml ---"
-        cat kubernetes/frontend-deployment.yml
+        # NOTE THE DOUBLE QUOTES HERE. THIS IS THE FIX.
+        sed -i "s|PLACEHOLDER_BACKEND_IMAGE|${{ needs.build-and-push.outputs.backend-image }}|g" kubernetes/backend-deployment.yml
+        sed -i "s|PLACEHOLDER_FRONTEND_IMAGE|${{ needs.build-and-push.outputs.frontend-image }}|g" kubernetes/frontend-deployment.yml
 
     - name: Run Ansible Playbook
       run: ansible-playbook ansible/playbook.yml
