@@ -14,8 +14,8 @@ jobs:
   build-and-push:
     runs-on: ubuntu-latest
     outputs:
-      backend-image: ${{ steps.backend-push.outputs.image }}
-      frontend-image: ${{ steps.frontend-push.outputs.image }}
+      backend-image: ${{ steps.backend-build.outputs.image }}
+      frontend-image: ${{ steps.frontend-build.outputs.image }}
     steps:
     - name: Checkout Application Code
       uses: actions/checkout@v3
