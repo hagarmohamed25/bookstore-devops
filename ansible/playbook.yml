@@ -34,8 +34,8 @@
         state: present
         src: "{{ item }}"
       loop:
-        - kubernetes/backend-deployment.yml
-        - kubernetes/frontend-deployment.yml
-        - kubernetes/backend-service.yml
-        - kubernetes/frontend-service.yml
-        - kubernetes/ingress.yml
+        - ../kubernetes/backend-deployment.yml
+        - ../kubernetes/frontend-deployment.yml
+        - ../kubernetes/backend-service.yml
+        - ../kubernetes/frontend-service.yml
+        - ../kubernetes/ingress.yml
