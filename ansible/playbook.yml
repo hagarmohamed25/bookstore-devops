@@ -29,7 +29,13 @@
                 "eks.amazonaws.com/role-arn": "arn:aws:iam::620369151876:role/AWSLoadBalancerControllerRole"
             }
 
-    - name: Apply all Kubernetes manifests
+    - name: Apply Kubernetes manifests
       kubernetes.core.k8s:
         state: present
-        definition: "{{ lookup('kubernetes.core.k8s', kube_config_path='~/.kube/config', kube_context='arn:aws:eks:us-east-1:YOUR_AWS_ACCOUNT_ID:cluster/bookstore-cluster', template_dir='../kubernetes') }}"
+        src: "{{ item }}"
+      loop:
+        - kubernetes/backend-deployment.yml
+        - kubernetes/frontend-deployment.yml
+        - kubernetes/backend-service.yml
+        - kubernetes/frontend-service.yml
+        - kubernetes/ingress.yml
