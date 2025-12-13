@@ -82,7 +82,7 @@ jobs:
     - name: Install Ansible and dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install ansible kubernetes-core openshift community.aws
+        pip install ansible kubernetes openshift community.aws
 
     - name: Replace image tags in Kubernetes manifests
       run: |
