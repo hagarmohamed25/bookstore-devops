@@ -3,10 +3,13 @@ name: Build and Deploy to EKS
 on:
   push:
     branches: [ "main" ]
+  workflow_dispatch:  # Add manual trigger for the button
 
 env:
   AWS_REGION: us-east-1
   EKS_CLUSTER_NAME: ${{ vars.EKS_CLUSTER_NAME || 'bookstore-cluster' }}
+  DOMAIN_NAME: ${{ vars.DOMAIN_NAME || 'bookstore.example.com' }}
+  HOSTED_ZONE_ID: ${{ vars.HOSTED_ZONE_ID || '' }}  # Empty if not set
 
 jobs:
   build-and-push:
@@ -100,6 +103,28 @@ jobs:
         # Use the URLs in the sed command
         sed -i "s|PLACEHOLDER_BACKEND_IMAGE|$BACKEND_IMAGE|g" kubernetes/backend-deployment.yml
         sed -i "s|PLACEHOLDER_FRONTEND_IMAGE|$FRONTEND_IMAGE|g" kubernetes/frontend-deployment.yml
+
+    - name: Create Load Balancer and DNS (Terraform)
+      run: |
+        cd terraform
+        terraform init
+        
+        # Only apply if HOSTED_ZONE_ID is set
+        if [ -n "${{ env.HOSTED_ZONE_ID }}" ]; then
+          echo "Creating load balancer with DNS..."
+          terraform apply -auto-approve -var="domain_name=${{ env.DOMAIN_NAME }}" -var="hosted_zone_id=${{ env.HOSTED_ZONE_ID }}"
+        else
+          echo "No hosted zone ID provided, creating load balancer only..."
+          terraform apply -auto-approve -var="domain_name=${{ env.DOMAIN_NAME }}" -var="hosted_zone_id="
+        fi
+
+    - name: Get Load Balancer DNS
+      id: get-lb-dns
+      run: |
+        cd terraform
+        terraform output -json > outputs.json
+        LOAD_BALANCER_DNS=$(jq -r '.load_balancer_dns_name.value' outputs.json)
+        echo "LOAD_BALANCER_DNS=$LOAD_BALANCER_DNS" >> $GITHUB_ENV
 
     - name: Run Ansible Playbook
       run: ansible-playbook ansible/playbook.yml
