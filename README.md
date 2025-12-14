@@ -1,7 +1,7 @@
 # bookstore-app-v2
 ****
-# Project Architecture Overview
 
+## Project Architecture Overview
 
 | Stage | Tool | Purpose |
 |-------|------|---------|
@@ -11,13 +11,14 @@
 | Infrastructure | Terraform | Provision AWS resources |
 | Configuration | Ansible | Apply K8s manifests |
 | Deployment | Amazon EKS | Run application containers |
+****
 
-```markdown
 ## Project Diagram
 
-![Project Diagram](./Project_Diagram.png)
+![Project Diagram](Project_Diagram.png)
 
 ********
+
 # Project Structure
 ```
 bookstore-devops/
