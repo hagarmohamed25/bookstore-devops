@@ -2,7 +2,7 @@ provider "aws" {
   region = var.region
 }
 
-# VPC and Networking for EKS
+# VPC and Networking for EKS (keep this part)
 data "aws_availability_zones" "available" {}
 
 resource "aws_vpc" "eks_vpc" {
@@ -21,7 +21,7 @@ resource "aws_subnet" "eks_subnet" {
 
   tags = {
     Name                                            = "bookstore-subnet-${count.index}"
-    "kubernetes.io/cluster/${var.cluster_name}" = "shared" # Important for EKS
+    "kubernetes.io/cluster/${var.cluster_name}" = "shared"
   }
 }
 
@@ -46,7 +46,7 @@ resource "aws_route_table_association" "eks_rta" {
   route_table_id = aws_route_table.eks_rt.id
 }
 
-# IAM Role for EKS Cluster
+# IAM Role for EKS Cluster (keep this part)
 resource "aws_iam_role" "eks_cluster_role" {
   name = "bookstore-eks-cluster-role"
   assume_role_policy = jsonencode({
@@ -68,11 +68,11 @@ resource "aws_iam_role_policy_attachment" "eks_cluster_policy" {
   role       = aws_iam_role.eks_cluster_role.name
 }
 
-# EKS Cluster
+# EKS Cluster (keep this part)
 resource "aws_eks_cluster" "eks" {
   name     = var.cluster_name
   role_arn = aws_iam_role.eks_cluster_role.arn
-  version  = "1.29" # Use a recent, stable version
+  version  = "1.29"
 
   vpc_config {
     subnet_ids = aws_subnet.eks_subnet[*].id
@@ -83,7 +83,7 @@ resource "aws_eks_cluster" "eks" {
   ]
 }
 
-# IAM Role for EKS Node Group
+# IAM Role for EKS Node Group (keep this part)
 resource "aws_iam_role" "eks_node_role" {
   name = "bookstore-eks-node-role"
   assume_role_policy = jsonencode({
@@ -115,7 +115,7 @@ resource "aws_iam_role_policy_attachment" "ecr_readonly_policy" {
   role       = aws_iam_role.eks_node_role.name
 }
 
-# EKS Node Group
+# EKS Node Group (keep this part)
 resource "aws_eks_node_group" "nodes" {
   cluster_name    = aws_eks_cluster.eks.name
   node_group_name = "bookstore-node-group"
@@ -123,7 +123,7 @@ resource "aws_eks_node_group" "nodes" {
   subnet_ids      = aws_subnet.eks_subnet[*].id
 
   scaling_config {
-    desired_size = 2 # Minimum for a decent demo
+    desired_size = 2
     max_size     = 2
     min_size     = 2
   }
@@ -137,7 +137,7 @@ resource "aws_eks_node_group" "nodes" {
   ]
 }
 
-# IAM Role and Policy for AWS Load Balancer Controller
+# IAM Role and Policy for AWS Load Balancer Controller (keep this part)
 resource "aws_iam_role" "lb_controller_role" {
   name = "AWSLoadBalancerControllerRole"
   assume_role_policy = jsonencode({
@@ -354,4 +354,67 @@ resource "aws_iam_policy" "lb_controller_policy" {
 resource "aws_iam_role_policy_attachment" "lb_controller_policy_attach" {
   role       = aws_iam_role.lb_controller_role.name
   policy_arn = aws_iam_policy.lb_controller_policy.arn
+}
+
+# ✅ FIXED: Load Balancer Section - Using your EKS subnets
+resource "aws_lb" "bookstore_lb" {
+  name               = "bookstore-lb"
+  internal           = false
+  load_balancer_type = "application"
+  # ✅ Use your EKS subnets instead of non-existent public subnets
+  subnets            = aws_subnet.eks_subnet[*].id
+  
+  # ✅ Create security group for the load balancer
+  security_groups = [
+    aws_security_group.lb_sg.id
+  ]
+}
+
+# ✅ Create security group for the load balancer
+resource "aws_security_group" "lb_sg" {
+  name        = "bookstore-lb-sg"
+  description = "Security group for bookstore load balancer"
+  vpc_id      = aws_vpc.eks_vpc.id
+
+  ingress {
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+resource "aws_lb_target_group" "bookstore_tg" {
+  name     = "bookstore-tg"
+  port     = 80
+  protocol = "HTTP"
+  vpc_id   = aws_vpc.eks_vpc.id
+}
+
+resource "aws_lb_listener" "bookstore_listener" {
+  load_balancer_arn = aws_lb.bookstore_lb.arn
+  port             = 80
+  protocol         = "HTTP"
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.bookstore_tg.arn
+  }
+}
+
+resource "aws_route53_record" "bookstore" {
+  zone_id = var.hosted_zone_id
+  name    = var.domain_name
+  type    = "A"
+  alias {
+    name                   = aws_lb.bookstore_lb.dns_name
+    zone_id                = aws_lb.bookstore_lb.zone_id
+    evaluate_target_health = true
+  }
 }
