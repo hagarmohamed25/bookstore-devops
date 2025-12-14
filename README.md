@@ -13,9 +13,11 @@
 | Deployment | Amazon EKS | Run application containers |
 
 #Project Diagram
+****
 
-![Project Diagram](https://raw.githubusercontent.com/hagarmohamed25/bookstore-devops/main/Diagram%20of%20Project.png)
-
+```
+![Project Diagram](./Diagram%20of%20Project.png)
+```
 
 ********
 # Project Structure
