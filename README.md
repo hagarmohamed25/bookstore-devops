@@ -13,31 +13,8 @@
 | Deployment | Amazon EKS | Run application containers |
 
 ```
-+----------------+      +-----------------------+      +------------------------+
-|                |      |                       |      |                        |
-|  Developer's   |----->|  GitHub Actions (CI)  |----->|  Amazon ECR (Registry) |
-|   Local Repo   |      |   - Build Docker      |      |   - Store Docker Images|
-|                |      |   - Push to ECR       |      |                        |
-+----------------+      +-----------+-----------+      +-----------+------------+
-                                   |                          |
-                                   | (Deploy)                 | (Pull Images)
-                                   v                          v
-+----------------+      +-----------------------+      +------------------------+
-|                |      |                       |      |                        |
-|   End User     |<-----|  Amazon EKS (CD)      |<-----|  Terraform (IaC)       |
-|  via Browser   |      | - Kubernetes Cluster  |      | - Provisions AWS       |
-|                |      | - Runs App Containers |      |   Infrastructure       |
-+----------------+      +-----------+-----------+      +------------------------+
-                                   ^
-                                   |
-                                   | (Configures K8s)
-                                   |
-                             +-------------+
-                             |             |
-                             |   Ansible   |
-                             | - Apply K8s |
-                             |   Manifests |
-                             +-------------+
+![Diagram](assets/Diagram%20of%20Project.png)
+
 ```
 ********
 # Project Structure
