@@ -12,10 +12,9 @@
 | Configuration | Ansible | Apply K8s manifests |
 | Deployment | Amazon EKS | Run application containers |
 
-```
+
 ![Diagram](assets/Diagram%20of%20Project.png)
 
-```
 ********
 # Project Structure
 ```
