@@ -12,10 +12,10 @@
 | Configuration | Ansible | Apply K8s manifests |
 | Deployment | Amazon EKS | Run application containers |
 
-#Project Diagram
+# Project Diagram
 ****
 
-```
+```markdown
 ![Project Diagram](./Diagram%20of%20Project.png)
 ```
 
