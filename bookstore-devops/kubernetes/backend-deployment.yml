@@ -4,7 +4,7 @@ metadata:
   name: backend-pv-volume
   namespace: default
   labels:
-    type: local
+    local
 spec:
   storageClassName: manual
   capacity:
@@ -13,6 +13,7 @@ spec:
     - ReadWriteOnce
   hostPath:
     path: "/mnt/data"
+
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -26,6 +27,7 @@ spec:
   resources:
     requests:
       storage: 1Gi
+
 ---
 apiVersion: apps/v1
 kind: Deployment

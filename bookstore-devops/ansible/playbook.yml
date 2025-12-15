@@ -21,21 +21,21 @@
         release_namespace: kube-system
         create_namespace: true
         values:
-          clusterName: "bookstore-cluster" # Must match your EKS cluster name
+          clusterName: "{{ cluster_name }}"
           serviceAccount:
             create: true
             name: aws-load-balancer-controller
-            annotations: {
-                "eks.amazonaws.com/role-arn": "arn:aws:iam::620369151876:role/AWSLoadBalancerControllerRole"
-            }
+            annotations:
+              "eks.amazonaws.com/role-arn": "{{ lb_controller_role_arn }}"
+          enable_deletion_protection: false
 
     - name: Apply Kubernetes manifests
       kubernetes.core.k8s:
         state: present
         src: "{{ item }}"
       loop:
-        - ../kubernetes/backend-deployment.yml
-        - ../kubernetes/frontend-deployment.yml
-        - ../kubernetes/backend-service.yml
-        - ../kubernetes/frontend-service.yml
-        - ../kubernetes/ingress.yml
+        - ../kubernetes/backend-deployment.yaml
+        - ../kubernetes/frontend-deployment.yaml
+        - ../kubernetes/backend-service.yaml
+        - ../kubernetes/frontend-service.yaml
+        - ../kubernetes/ingress.yaml

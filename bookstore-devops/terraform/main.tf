@@ -1,8 +1,17 @@
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 4.0"
+    }
+  }
+}
+
 provider "aws" {
   region = var.region
 }
 
-# VPC and Networking for EKS (keep this part)
+# VPC and Networking for EKS
 data "aws_availability_zones" "available" {}
 
 resource "aws_vpc" "eks_vpc" {
@@ -13,14 +22,13 @@ resource "aws_vpc" "eks_vpc" {
 }
 
 resource "aws_subnet" "eks_subnet" {
-  count                   = 2
-  vpc_id                  = aws_vpc.eks_vpc.id
-  cidr_block              = "10.0.${count.index}.0/24"
-  availability_zone       = data.aws_availability_zones.available.names[count.index]
+  count = 2
+  vpc_id     = aws_vpc.eks_vpc.id
+  cidr_block = "10.0.${count.index}.0/24"
+  availability_zone = data.aws_availability_zones.available.names[count.index]
   map_public_ip_on_launch = true
-
   tags = {
-    Name                                            = "bookstore-subnet-${count.index}"
+    Name = "bookstore-subnet-${count.index}"
     "kubernetes.io/cluster/${var.cluster_name}" = "shared"
   }
 }
@@ -41,12 +49,12 @@ resource "aws_route_table" "eks_rt" {
 }
 
 resource "aws_route_table_association" "eks_rta" {
-  count          = 2
+  count = 2
   subnet_id      = aws_subnet.eks_subnet[count.index].id
   route_table_id = aws_route_table.eks_rt.id
 }
 
-# IAM Role for EKS Cluster (keep this part)
+# IAM Role for EKS Cluster
 resource "aws_iam_role" "eks_cluster_role" {
   name = "bookstore-eks-cluster-role"
   assume_role_policy = jsonencode({
@@ -68,7 +76,7 @@ resource "aws_iam_role_policy_attachment" "eks_cluster_policy" {
   role       = aws_iam_role.eks_cluster_role.name
 }
 
-# EKS Cluster (keep this part)
+# EKS Cluster
 resource "aws_eks_cluster" "eks" {
   name     = var.cluster_name
   role_arn = aws_iam_role.eks_cluster_role.arn
@@ -83,7 +91,7 @@ resource "aws_eks_cluster" "eks" {
   ]
 }
 
-# IAM Role for EKS Node Group (keep this part)
+# IAM Role for EKS Node Group
 resource "aws_iam_role" "eks_node_role" {
   name = "bookstore-eks-node-role"
   assume_role_policy = jsonencode({
@@ -115,7 +123,7 @@ resource "aws_iam_role_policy_attachment" "ecr_readonly_policy" {
   role       = aws_iam_role.eks_node_role.name
 }
 
-# EKS Node Group (keep this part)
+# EKS Node Group
 resource "aws_eks_node_group" "nodes" {
   cluster_name    = aws_eks_cluster.eks.name
   node_group_name = "bookstore-node-group"
@@ -137,7 +145,7 @@ resource "aws_eks_node_group" "nodes" {
   ]
 }
 
-# IAM Role and Policy for AWS Load Balancer Controller (keep this part)
+# IAM Role and Policy for AWS Load Balancer Controller
 resource "aws_iam_role" "lb_controller_role" {
   name = "AWSLoadBalancerControllerRole"
   assume_role_policy = jsonencode({
@@ -168,8 +176,8 @@ resource "aws_iam_policy" "lb_controller_policy" {
           "ec2:DescribeAddresses",
           "ec2:DescribeAvailabilityZones",
           "ec2:DescribeInternetGateways",
-          "ec2:DescribeVpcs",
           "ec2:DescribeSubnets",
+          "ec2:DescribeVpcs",
           "ec2:DescribeSecurityGroups",
           "ec2:DescribeInstances",
           "ec2:DescribeNetworkInterfaces",
@@ -184,7 +192,7 @@ resource "aws_iam_policy" "lb_controller_policy" {
           "elasticloadbalancing:DescribeTargetGroups",
           "elasticloadbalancing:DescribeTargetGroupAttributes",
           "elasticloadbalancing:DescribeTargetHealth",
-          "elasticloadbalancing:DescribeTags"
+          "elasticloadbalancing:DescribeTags",
         ],
         Resource = "*"
       },
@@ -196,7 +204,6 @@ resource "aws_iam_policy" "lb_controller_policy" {
           "acm:DescribeCertificate",
           "iam:ListServerCertificates",
           "iam:GetServerCertificate",
-          "waf-regional:GetWebACL",
           "waf-regional:GetWebACLForResource",
           "waf-regional:AssociateWebACL",
           "waf-regional:DisassociateWebACL",
@@ -257,30 +264,7 @@ resource "aws_iam_policy" "lb_controller_policy" {
           "ec2:RevokeSecurityGroupIngress",
           "ec2:DeleteSecurityGroup"
         ],
-        Resource = "*",
-        Condition = {
-          StringEquals = {
-            "aws:RequestedRegion": [
-              "us-east-1",
-              "us-east-2",
-              "us-west-1",
-              "us-west-2",
-              "ap-south-1",
-              "ap-northeast-1",
-              "ap-northeast-2",
-              "ap-northeast-3",
-              "ap-southeast-1",
-              "ap-southeast-2",
-              "ca-central-1",
-              "eu-central-1",
-              "eu-west-1",
-              "eu-west-2",
-              "eu-west-3",
-              "eu-north-1",
-              "sa-east-1"
-            ]
-          }
-        }
+        Resource = "*"
       },
       {
         Effect = "Allow",
@@ -291,7 +275,7 @@ resource "aws_iam_policy" "lb_controller_policy" {
         Resource = "*",
         Condition = {
           StringEquals = {
-            "aws:RequestedRegion": [
+            "aws:RequestedRegion" = [
               "us-east-1",
               "us-east-2",
               "us-west-1",
@@ -319,15 +303,15 @@ resource "aws_iam_policy" "lb_controller_policy" {
           "elasticloadbalancing:AddTags",
           "elasticloadbalancing:RemoveTags"
         ],
-        Resource: [
-          "arn:aws:elasticloadbalancing:*:*:targetgroup/*",
+        Resource = [
+          "arn:aws:elasticloadbalancing:*:*:targetgroup/*/*",
           "arn:aws:elasticloadbalancing:*:*:loadbalancer/net/*",
           "arn:aws:elasticloadbalancing:*:*:loadbalancer/app/*"
         ]
       },
       {
         Effect = "Allow",
-        Action: [
+        Action = [
           "elasticloadbalancing:ModifyLoadBalancerAttributes",
           "elasticloadbalancing:SetIpAddressType",
           "elasticloadbalancing:SetSecurityGroups",
@@ -337,15 +321,15 @@ resource "aws_iam_policy" "lb_controller_policy" {
           "elasticloadbalancing:ModifyTargetGroupAttributes",
           "elasticloadbalancing:DeleteTargetGroup"
         ],
-        Resource: "*"
+        Resource = "*"
       },
       {
-        Effect: "Allow",
-        Action: [
+        Effect = "Allow",
+        Action = [
           "elasticloadbalancing:RegisterTargets",
           "elasticloadbalancing:DeregisterTargets"
         ],
-        Resource: "arn:aws:elasticloadbalancing:*:*:targetgroup/*"
+        Resource = "arn:aws:elasticloadbalancing:*:*:targetgroup/*/*"
       }
     ]
   })
@@ -356,29 +340,34 @@ resource "aws_iam_role_policy_attachment" "lb_controller_policy_attach" {
   policy_arn = aws_iam_policy.lb_controller_policy.arn
 }
 
-# ✅ FIXED: Load Balancer Section - Using your EKS subnets
-resource "aws_lb" "bookstore_lb" {
-  name               = "bookstore-lb"
+# Application Load Balancer
+resource "aws_lb" "application_load_balancer" {
+  name               = "bookstore-alb"
   internal           = false
   load_balancer_type = "application"
-  # ✅ Use your EKS subnets instead of non-existent public subnets
-  subnets            = aws_subnet.eks_subnet[*].id
-  
-  # ✅ Create security group for the load balancer
-  security_groups = [
-    aws_security_group.lb_sg.id
-  ]
+  security_groups    = [aws_security_group.alb_sg.id]
+  subnets           = aws_subnet.eks_subnet[*].id
+
+  tags = {
+    Name = "bookstore-alb"
+  }
 }
 
-# ✅ Create security group for the load balancer
-resource "aws_security_group" "lb_sg" {
-  name        = "bookstore-lb-sg"
-  description = "Security group for bookstore load balancer"
+resource "aws_security_group" "alb_sg" {
+  name        = "bookstore-alb-sg"
+  description = "Security group for bookstore ALB"
   vpc_id      = aws_vpc.eks_vpc.id
 
   ingress {
     from_port   = 80
     to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    from_port   = 443
+    to_port     = 443
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
@@ -391,30 +380,21 @@ resource "aws_security_group" "lb_sg" {
   }
 }
 
-resource "aws_lb_target_group" "bookstore_tg" {
-  name     = "bookstore-tg"
-  port     = 80
-  protocol = "HTTP"
-  vpc_id   = aws_vpc.eks_vpc.id
-}
+# ECR Repositories
+resource "aws_ecr_repository" "backend" {
+  name = "bookstore-backend"
+  image_tag_mutability = "MUTABLE"
 
-resource "aws_lb_listener" "bookstore_listener" {
-  load_balancer_arn = aws_lb.bookstore_lb.arn
-  port             = 80
-  protocol         = "HTTP"
-  default_action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.bookstore_tg.arn
+  image_scanning_configuration {
+    scan_on_push = true
   }
 }
 
-resource "aws_route53_record" "bookstore" {
-  zone_id = var.hosted_zone_id
-  name    = var.domain_name
-  type    = "A"
-  alias {
-    name                   = aws_lb.bookstore_lb.dns_name
-    zone_id                = aws_lb.bookstore_lb.zone_id
-    evaluate_target_health = true
+resource "aws_ecr_repository" "frontend" {
+  name = "bookstore-frontend"
+  image_tag_mutability = "MUTABLE"
+
+  image_scanning_configuration {
+    scan_on_push = true
   }
 }
