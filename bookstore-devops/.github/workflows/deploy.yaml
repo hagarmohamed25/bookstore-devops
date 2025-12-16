@@ -28,6 +28,10 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
 
+      - name: Install Terraform (for future use if needed)
+        run: |
+          sudo apt-get update && sudo apt-get install -y terraform
+
       - name: Build, tag, and push backend image
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
@@ -79,6 +83,10 @@ jobs:
 
       - name: Update kubeconfig
         run: aws eks update-kubeconfig --name ${{ env.EKS_CLUSTER_NAME }} --region ${{ env.AWS_REGION }}
+
+      - name: Install Terraform
+        run: |
+          sudo apt-get update && sudo apt-get install -y terraform
 
       - name: Set up Python
         uses: actions/setup-python@v4
