@@ -10,8 +10,7 @@ metadata:
     alb.ingress.kubernetes.io/target-type: ip
 spec:
   rules:
-  - host: simple-bookstore.com  # Replace with your actual domain or use a wildcard
-    http:
+  - http:
       paths:
       - path: /
         pathType: Prefix
@@ -20,7 +19,3 @@ spec:
             name: frontend-service
             port:
               number: 3000
-  tls:
-  - hosts:
-    - simple-bookstore.com
-    secretName: bookstore-tls-secret  # Create this secret with your TLS certificate

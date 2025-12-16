@@ -17,7 +17,6 @@ spec:
     spec:
       containers:
       - name: frontend
-        # Image will be updated by GitHub Actions
-        image: PLACEHOLDER_FRONTEND_IMAGE # <-- THIS IS THE CHANGED LINE
+        image: PLACEHOLDER_FRONTEND_IMAGE
         ports:
         - containerPort: 3000

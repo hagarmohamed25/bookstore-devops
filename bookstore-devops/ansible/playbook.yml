@@ -1,8 +1,11 @@
----
 - name: Deploy Bookstore App to Kubernetes
   hosts: localhost
   connection: local
   gather_facts: false
+
+  vars:
+    cluster_name: "bookstore-cluster"
+    lb_controller_role_arn: "arn:aws:iam::620369151876:role/AWSLoadBalancerControllerRole"
 
   collections:
     - kubernetes.core
@@ -27,7 +30,7 @@
             name: aws-load-balancer-controller
             annotations:
               "eks.amazonaws.com/role-arn": "{{ lb_controller_role_arn }}"
-          enable_deletion_protection: false
+        enable_deletion_protection: false
 
     - name: Apply Kubernetes manifests
       kubernetes.core.k8s:

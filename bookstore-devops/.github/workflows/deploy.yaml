@@ -6,7 +6,7 @@ on:
 
 env:
   AWS_REGION: us-east-1
-  EKS_CLUSTER_NAME: ${{ vars.EKS_CLUSTER_NAME || 'bookstore-cluster' }}
+  EKS_CLUSTER_NAME: bookstore-cluster
 
 jobs:
   build-and-push:
@@ -102,4 +102,4 @@ jobs:
           sed -i "s|PLACEHOLDER_FRONTEND_IMAGE|$FRONTEND_IMAGE|g" kubernetes/frontend-deployment.yaml
 
       - name: Run Ansible Playbook
-        run: ansible-playbook ansible/playbook.yaml
+        run: ansible-playbook ansible/playbook.yml

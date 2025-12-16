@@ -23,13 +23,13 @@ resource "aws_vpc" "eks_vpc" {
 
 resource "aws_subnet" "eks_subnet" {
   count = 2
-  vpc_id     = aws_vpc.eks_vpc.id
+  vpc_id = aws_vpc.eks_vpc.id
   cidr_block = "10.0.${count.index}.0/24"
   availability_zone = data.aws_availability_zones.available.names[count.index]
   map_public_ip_on_launch = true
   tags = {
     Name = "bookstore-subnet-${count.index}"
-    "kubernetes.io/cluster/${var.cluster_name}" = "shared"
+    "kubernetes.io/cluster/${var.cluster_name}" = "shared" # Important for EKS
   }
 }
 
@@ -50,7 +50,7 @@ resource "aws_route_table" "eks_rt" {
 
 resource "aws_route_table_association" "eks_rta" {
   count = 2
-  subnet_id      = aws_subnet.eks_subnet[count.index].id
+  subnet_id = aws_subnet.eks_subnet[count.index].id
   route_table_id = aws_route_table.eks_rt.id
 }
 
@@ -69,18 +69,24 @@ resource "aws_iam_role" "eks_cluster_role" {
       }
     ]
   })
+
+  lifecycle {
+    ignore_changes = [
+      assume_role_policy
+    ]
+  }
 }
 
 resource "aws_iam_role_policy_attachment" "eks_cluster_policy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
-  role       = aws_iam_role.eks_cluster_role.name
+  role = aws_iam_role.eks_cluster_role.name
 }
 
 # EKS Cluster
 resource "aws_eks_cluster" "eks" {
-  name     = var.cluster_name
+  name = var.cluster_name
   role_arn = aws_iam_role.eks_cluster_role.arn
-  version  = "1.29"
+  version = "1.29" # Use a recent, stable version
 
   vpc_config {
     subnet_ids = aws_subnet.eks_subnet[*].id
@@ -106,34 +112,40 @@ resource "aws_iam_role" "eks_node_role" {
       }
     ]
   })
+
+  lifecycle {
+    ignore_changes = [
+      assume_role_policy
+    ]
+  }
 }
 
 resource "aws_iam_role_policy_attachment" "eks_worker_node_policy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
-  role       = aws_iam_role.eks_node_role.name
+  role = aws_iam_role.eks_node_role.name
 }
 
 resource "aws_iam_role_policy_attachment" "eks_cni_policy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
-  role       = aws_iam_role.eks_node_role.name
+  role = aws_iam_role.eks_node_role.name
 }
 
 resource "aws_iam_role_policy_attachment" "ecr_readonly_policy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
-  role       = aws_iam_role.eks_node_role.name
+  role = aws_iam_role.eks_node_role.name
 }
 
 # EKS Node Group
 resource "aws_eks_node_group" "nodes" {
-  cluster_name    = aws_eks_cluster.eks.name
+  cluster_name = aws_eks_cluster.eks.name
   node_group_name = "bookstore-node-group"
-  node_role_arn   = aws_iam_role.eks_node_role.arn
-  subnet_ids      = aws_subnet.eks_subnet[*].id
+  node_role_arn = aws_iam_role.eks_node_role.arn
+  subnet_ids = aws_subnet.eks_subnet[*].id
 
   scaling_config {
-    desired_size = 2
-    max_size     = 2
-    min_size     = 2
+    desired_size = 2 # Minimum for a decent demo
+    max_size = 2
+    min_size = 2
   }
 
   instance_types = [var.node_instance_type]
@@ -160,10 +172,16 @@ resource "aws_iam_role" "lb_controller_role" {
       }
     ]
   })
+
+  lifecycle {
+    ignore_changes = [
+      assume_role_policy
+    ]
+  }
 }
 
 resource "aws_iam_policy" "lb_controller_policy" {
-  name        = "AWSLoadBalancerControllerIAMPolicy"
+  name = "AWSLoadBalancerControllerIAMPolicy"
   description = "Policy for AWS Load Balancer Controller"
   policy = jsonencode({
     Version = "2012-10-17"
@@ -208,7 +226,6 @@ resource "aws_iam_policy" "lb_controller_policy" {
           "waf-regional:AssociateWebACL",
           "waf-regional:DisassociateWebACL",
           "wafv2:GetWebACL",
-          "wafv2:GetWebACLForResource",
           "wafv2:AssociateWebACL",
           "wafv2:DisassociateWebACL",
           "shield:GetSubscriptionState",
@@ -264,18 +281,10 @@ resource "aws_iam_policy" "lb_controller_policy" {
           "ec2:RevokeSecurityGroupIngress",
           "ec2:DeleteSecurityGroup"
         ],
-        Resource = "*"
-      },
-      {
-        Effect = "Allow",
-        Action = [
-          "elasticloadbalancing:CreateLoadBalancer",
-          "elasticloadbalancing:CreateTargetGroup"
-        ],
         Resource = "*",
         Condition = {
           StringEquals = {
-            "aws:RequestedRegion" = [
+            "aws:RequestedRegion": [
               "us-east-1",
               "us-east-2",
               "us-west-1",
@@ -291,7 +300,36 @@ resource "aws_iam_policy" "lb_controller_policy" {
               "eu-west-1",
               "eu-west-2",
               "eu-west-3",
-              "eu-north-1",
+              "sa-east-1"
+            ]
+          }
+        }
+      },
+      {
+        Effect = "Allow",
+        Action = [
+          "elasticloadbalancing:CreateLoadBalancer",
+          "elasticloadbalancing:CreateTargetGroup"
+        ],
+        Resource = "*",
+        Condition = {
+          StringEquals = {
+            "aws:RequestedRegion": [
+              "us-east-1",
+              "us-east-2",
+              "us-west-1",
+              "us-west-2",
+              "ap-south-1",
+              "ap-northeast-1",
+              "ap-northeast-2",
+              "ap-northeast-3",
+              "ap-southeast-1",
+              "ap-southeast-2",
+              "ca-central-1",
+              "eu-central-1",
+              "eu-west-1",
+              "eu-west-2",
+              "eu-west-3",
               "sa-east-1"
             ]
           }
@@ -305,8 +343,8 @@ resource "aws_iam_policy" "lb_controller_policy" {
         ],
         Resource = [
           "arn:aws:elasticloadbalancing:*:*:targetgroup/*/*",
-          "arn:aws:elasticloadbalancing:*:*:loadbalancer/net/*",
-          "arn:aws:elasticloadbalancing:*:*:loadbalancer/app/*"
+          "arn:aws:elasticloadbalancing:*:*:loadbalancer/net/*/*",
+          "arn:aws:elasticloadbalancing:*:*:loadbalancer/app/*/*"
         ]
       },
       {
@@ -336,46 +374,45 @@ resource "aws_iam_policy" "lb_controller_policy" {
 }
 
 resource "aws_iam_role_policy_attachment" "lb_controller_policy_attach" {
-  role       = aws_iam_role.lb_controller_role.name
+  role = aws_iam_role.lb_controller_role.name
   policy_arn = aws_iam_policy.lb_controller_policy.arn
 }
 
 # Application Load Balancer
 resource "aws_lb" "application_load_balancer" {
-  name               = "bookstore-alb"
-  internal           = false
+  name = "bookstore-alb"
+  internal = false
   load_balancer_type = "application"
-  security_groups    = [aws_security_group.alb_sg.id]
-  subnets           = aws_subnet.eks_subnet[*].id
-
+  security_groups = [aws_security_group.alb_sg.id]
+  subnets = aws_subnet.eks_subnet[*].id
   tags = {
     Name = "bookstore-alb"
   }
 }
 
 resource "aws_security_group" "alb_sg" {
-  name        = "bookstore-alb-sg"
+  name = "bookstore-alb-sg"
   description = "Security group for bookstore ALB"
-  vpc_id      = aws_vpc.eks_vpc.id
+  vpc_id = aws_vpc.eks_vpc.id
 
   ingress {
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
+    from_port = 80
+    to_port = 80
+    protocol = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
 
   ingress {
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
+    from_port = 443
+    to_port = 443
+    protocol = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
 
   egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
+    from_port = 0
+    to_port = 0
+    protocol = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
 }
