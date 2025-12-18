@@ -65,7 +65,7 @@ jobs:
       - name: Checkout DevOps Code
         uses: actions/checkout@v4
 
-      - name: Download image URLs artifacts
+      - name: Download image URLs
         uses: actions/download-artifact@v4
         with:
           name: image-urls
@@ -77,33 +77,39 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      # Required for Ansible to talk to EKS
-      - name: Setup kubectl
-        uses: azure/setup-kubectl@v3
+      # --- THIS STEP FIXES THE "terraform: command not found" ERROR ---
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
         with:
-          version: 'latest'
+          terraform_version: "1.8.5"
 
-      # Required because your Ansible playbook uses Helm
-      - name: Set up Helm
-        uses: azure/setup-helm@v3
-        with:
-          version: 'latest'
+      # --- THIS IS THE STEP THAT WAS FAILING ---
+      - name: create load balancer and dns (terraform)
+        run: |
+          cd terraform
+          terraform init
+          if [ -n "Z0325566216TQV3HZ88NB" ]; then
+            echo "Creating load balancer with DNS..."
+            terraform apply -auto-approve -var="domain_name=simple-bookstore.com" -var="hosted_zone_id=Z0325566216TQV3HZ88NB"
+          else
+            echo "No hosted zone ID provided, creating load balancer only..."
+            terraform apply -auto-approve -var="domain_name=simple-bookstore.com" -var="hosted_zone_id="
+          fi
 
       - name: Update kubeconfig
         run: aws eks update-kubeconfig --name ${{ env.EKS_CLUSTER_NAME }} --region ${{ env.AWS_REGION }}
 
-      - name: Set up Python
+      - name: Set up Python & Install Ansible
         uses: actions/setup-python@v5
         with:
           python-version: '3.9'
 
-      - name: Install Ansible and dependencies
+      - name: Install Ansible Dependencies
         run: |
-          python -m pip install --upgrade pip
           pip install ansible kubernetes openshift
           ansible-galaxy collection install community.aws kubernetes.core
 
-      - name: Replace image tags in Kubernetes manifests
+      - name: Replace image tags
         run: |
           BACKEND_IMAGE=$(cat backend-image.txt)
           FRONTEND_IMAGE=$(cat frontend-image.txt)
