@@ -13,12 +13,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Application Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: hagarmohamed25/bookstore-app-v2
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -26,7 +26,7 @@ jobs:
 
       - name: Login to Amazon ECR
         id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v1
+        uses: aws-actions/amazon-ecr-login@v2
 
       - name: Build, tag, and push backend image
         env:
@@ -63,7 +63,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout DevOps Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Download image URLs artifacts
         uses: actions/download-artifact@v4
@@ -71,17 +71,24 @@ jobs:
           name: image-urls
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
+      # --- ADDED STEP START ---
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.8.5"
+      # --- ADDED STEP END ---
+
       - name: Update kubeconfig
         run: aws eks update-kubeconfig --name ${{ env.EKS_CLUSTER_NAME }} --region ${{ env.AWS_REGION }}
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.9'
 
@@ -93,11 +100,8 @@ jobs:
 
       - name: Replace image tags in Kubernetes manifests
         run: |
-          # Read URLs from the downloaded files
           BACKEND_IMAGE=$(cat backend-image.txt)
           FRONTEND_IMAGE=$(cat frontend-image.txt)
-
-          # Use the URLs in the sed command
           sed -i "s|PLACEHOLDER_BACKEND_IMAGE|$BACKEND_IMAGE|g" kubernetes/backend-deployment.yaml
           sed -i "s|PLACEHOLDER_FRONTEND_IMAGE|$FRONTEND_IMAGE|g" kubernetes/frontend-deployment.yaml
 
