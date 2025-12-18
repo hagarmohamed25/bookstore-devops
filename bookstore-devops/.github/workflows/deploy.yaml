@@ -7,6 +7,8 @@ on:
 env:
   AWS_REGION: us-east-1
   EKS_CLUSTER_NAME: bookstore-cluster
+  DOMAIN_NAME: simple-bookstore.com
+  HOSTED_ZONE_ID: Z0325566216TQV3HZ88NB
 
 jobs:
   build-and-push:
@@ -28,29 +30,21 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build, tag, and push backend image
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REPOSITORY: bookstore-backend
-          IMAGE_TAG: ${{ github.sha }}
+      - name: Build and Push Backend
         run: |
           cd backend
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          echo "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" > ../backend-image.txt
+          docker build -t ${{ steps.login-ecr.outputs.registry }}/bookstore-backend:${{ github.sha }} .
+          docker push ${{ steps.login-ecr.outputs.registry }}/bookstore-backend:${{ github.sha }}
+          echo "${{ steps.login-ecr.outputs.registry }}/bookstore-backend:${{ github.sha }}" > ../backend-image.txt
 
-      - name: Build, tag, and push frontend image
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REPOSITORY: bookstore-frontend
-          IMAGE_TAG: ${{ github.sha }}
+      - name: Build and Push Frontend
         run: |
           cd frontend
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          echo "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" > ../frontend-image.txt
+          docker build -t ${{ steps.login-ecr.outputs.registry }}/bookstore-frontend:${{ github.sha }} .
+          docker push ${{ steps.login-ecr.outputs.registry }}/bookstore-frontend:${{ github.sha }}
+          echo "${{ steps.login-ecr.outputs.registry }}/bookstore-frontend:${{ github.sha }}" > ../frontend-image.txt
 
-      - name: Upload image URLs as artifacts
+      - name: Upload image URLs
         uses: actions/upload-artifact@v4
         with:
           name: image-urls
@@ -77,34 +71,31 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      # --- THIS STEP FIXES THE "terraform: command not found" ERROR ---
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: "1.8.5"
+          terraform_wrapper: false
 
-      # --- THIS IS THE STEP THAT WAS FAILING ---
-      - name: create load balancer and dns (terraform)
+      - name: Create load balancer and dns
         run: |
           cd terraform
           terraform init
-          if [ -n "Z0325566216TQV3HZ88NB" ]; then
-            echo "Creating load balancer with DNS..."
-            terraform apply -auto-approve -var="domain_name=simple-bookstore.com" -var="hosted_zone_id=Z0325566216TQV3HZ88NB"
+          if [ -n "${{ env.HOSTED_ZONE_ID }}" ]; then
+            terraform apply -auto-approve -var="domain_name=${{ env.DOMAIN_NAME }}" -var="hosted_zone_id=${{ env.HOSTED_ZONE_ID }}"
           else
-            echo "No hosted zone ID provided, creating load balancer only..."
-            terraform apply -auto-approve -var="domain_name=simple-bookstore.com" -var="hosted_zone_id="
+            terraform apply -auto-approve -var="domain_name=${{ env.DOMAIN_NAME }}" -var="hosted_zone_id="
           fi
 
       - name: Update kubeconfig
         run: aws eks update-kubeconfig --name ${{ env.EKS_CLUSTER_NAME }} --region ${{ env.AWS_REGION }}
 
-      - name: Set up Python & Install Ansible
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.9'
 
-      - name: Install Ansible Dependencies
+      - name: Install Ansible and dependencies
         run: |
           pip install ansible kubernetes openshift
           ansible-galaxy collection install community.aws kubernetes.core
