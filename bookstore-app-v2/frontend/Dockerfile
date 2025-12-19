@@ -13,8 +13,8 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 # Copy built React app from the 'build' stage
 COPY --from=build /app/build /usr/share/nginx/html
 
-# Expose port 3000 (matching Kubernetes manifest)
-EXPOSE 3000
+# Expose port 80 , so you'll use this port
+EXPOSE 80
 
 # Start Nginx server
 CMD ["nginx", "-g", "daemon off;"]
