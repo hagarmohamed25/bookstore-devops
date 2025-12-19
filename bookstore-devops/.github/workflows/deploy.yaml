@@ -69,6 +69,21 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.8.5"
+          terraform_wrapper: false
+
+      - name: Create load balancer and dns
+        run: |
+          cd terraform
+          terraform init
+          if [ -n "Z0325566216TQV3HZ88NB" ]; then
+            terraform apply -auto-approve -var="domain_name=simple-bookstore.com" -var="hosted_zone_id=Z0325566216TQV3HZ88NB"
+          else
+            terraform apply -auto-approve -var="domain_name=simple-bookstore.com" -var="hosted_zone_id="
+          fi
 
       - name: Update kubeconfig
         run: aws eks update-kubeconfig --name ${{ env.EKS_CLUSTER_NAME }} --region ${{ env.AWS_REGION }}
