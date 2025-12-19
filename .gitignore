@@ -1,9 +1,0 @@
-# Terraform
-.terraform/
-*.tfstate
-*.tfstate.*
-.tfplan
-
-# macOS / Windows
-.DS_Store
-Thumbs.db
