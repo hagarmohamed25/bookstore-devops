@@ -19,7 +19,7 @@ spec:
       - name: backend
         image: PLACEHOLDER_BACKEND_IMAGE
         ports:
-        - containerPort: 3001
+        - containerPort: 5000  # Updated to match Dockerfile EXPOSE 5000
         volumeMounts:
         - mountPath: "/app/backend/data"
           name: backend-storage

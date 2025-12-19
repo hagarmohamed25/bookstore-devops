@@ -19,4 +19,4 @@ spec:
       - name: frontend
         image: PLACEHOLDER_FRONTEND_IMAGE
         ports:
-        - containerPort: 3000
+        - containerPort: 80  # Updated to match Nginx port (not React's 3000)

@@ -9,7 +9,7 @@ spec:
   selector:
     app: frontend
   ports:
-    - protocol: TCP
-      port: 3000
-      targetPort: 3000
+  - protocol: TCP
+    port: 80        # Updated to match Nginx port
+    targetPort: 80   # Updated to match Nginx port
   type: ClusterIP  # Will be exposed via Ingress

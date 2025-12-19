@@ -6,7 +6,7 @@ metadata:
   annotations:
     kubernetes.io/ingress.class: "alb"
     alb.ingress.kubernetes.io/scheme: internet-facing
-    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS":443}]'
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
     alb.ingress.kubernetes.io/target-type: ip
 spec:
   rules:
@@ -18,4 +18,4 @@ spec:
           service:
             name: frontend-service
             port:
-              number: 3000
+              number: 80  # ✅ Updated to match Nginx port
